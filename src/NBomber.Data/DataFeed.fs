@@ -3,8 +3,7 @@
 open NBomber.Contracts
 
 /// DataFeed helps inject test data into your load test. It represents a data source.
-type IDataFeed<'T> =
-    abstract FeedName: string
+type IDataFeed<'T> =    
     abstract Items: 'T[]
     abstract GetNextItem: scenarioInfo:ScenarioInfo -> 'T
 
@@ -18,11 +17,10 @@ namespace NBomber.Data.FSharp
         
         /// Creates DataFeed that picks constant value per Scenario copy.
         /// Every Scenario copy will have unique constant value.
-        let constant name data =
+        let constant data =
             let _items = data |> Seq.toArray
 
-            { new IDataFeed<'T> with        
-                member _.FeedName = name            
+            { new IDataFeed<'T> with
                 member _.Items = _items
                 member _.GetNextItem(scenarioInfo) =
                     let index = scenarioInfo.ThreadNumber % _items.Length
@@ -30,7 +28,7 @@ namespace NBomber.Data.FSharp
             }     
         
         /// Creates DataFeed that goes back to the top of the sequence once the end is reached.
-        let circular name data =
+        let circular data =
             let _items = data |> Seq.toArray                
             let _lockObj = obj()
 
@@ -42,8 +40,7 @@ namespace NBomber.Data.FSharp
             let infiniteItems = _items |> createInfiniteStream
             let _enumerator = infiniteItems.GetEnumerator()        
 
-            { new IDataFeed<'T> with            
-                member _.FeedName = name            
+            { new IDataFeed<'T> with
                 member _.Items = _items
                 member _.GetNextItem(scenarioInfo) =
                     lock _lockObj (fun _ ->
@@ -53,7 +50,7 @@ namespace NBomber.Data.FSharp
             }  
         
         /// Creates DataFeed that randomly picks an item per GetNextItem() invocation.
-        let random name data =
+        let random data =
             let _random = Random()
             let _items = data |> Seq.toArray 
 
@@ -61,8 +58,7 @@ namespace NBomber.Data.FSharp
                 let index = _random.Next _items.Length
                 _items[index]
 
-            { new IDataFeed<'T> with
-                member _.FeedName = name
+            { new IDataFeed<'T> with                
                 member _.Items = _items
                 member _.GetNextItem(scenarioInfo) = getRandomItem()
             }
@@ -74,10 +70,10 @@ type DataFeed =
     
     /// Creates DataFeed that picks constant value per Scenario copy.
     /// Every Scenario copy will have unique constant value.
-    static member Constant (name, data: 'T seq) = NBomber.Data.FSharp.DataFeed.constant name data
+    static member Constant (data: 'T seq) = NBomber.Data.FSharp.DataFeed.constant data
             
     /// Creates DataFeed that goes back to the top of the sequence once the end is reached.            
-    static member Circular (name, data: 'T seq) = NBomber.Data.FSharp.DataFeed.circular name data        
+    static member Circular (data: 'T seq) = NBomber.Data.FSharp.DataFeed.circular data        
         
     /// Creates DataFeed that randomly picks an item per GetNextItem() invocation.        
-    static member Random (name, data: 'T seq) = NBomber.Data.FSharp.DataFeed.circular name data
+    static member Random (data: 'T seq) = NBomber.Data.FSharp.DataFeed.random data

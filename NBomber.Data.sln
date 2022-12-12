@@ -2,6 +2,10 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "NBomber.Data", "src\NBomber.Data\NBomber.Data.fsproj", "{5EDFA30B-C515-4810-A0BB-6A9AB57518B5}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "examples", "examples", "{08F0A3DA-CDB0-4629-8A02-116A89DDBC44}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CSharp", "examples\CSharp\CSharp.csproj", "{1D5140A9-335C-4615-9EED-2C970D0C6A60}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -12,5 +16,12 @@ Global
 		{5EDFA30B-C515-4810-A0BB-6A9AB57518B5}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{5EDFA30B-C515-4810-A0BB-6A9AB57518B5}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{5EDFA30B-C515-4810-A0BB-6A9AB57518B5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1D5140A9-335C-4615-9EED-2C970D0C6A60}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1D5140A9-335C-4615-9EED-2C970D0C6A60}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1D5140A9-335C-4615-9EED-2C970D0C6A60}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1D5140A9-335C-4615-9EED-2C970D0C6A60}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{1D5140A9-335C-4615-9EED-2C970D0C6A60} = {08F0A3DA-CDB0-4629-8A02-116A89DDBC44}
 	EndGlobalSection
 EndGlobal
