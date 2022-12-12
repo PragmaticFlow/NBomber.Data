@@ -2,7 +2,20 @@
 
     <PropertyGroup>
         <TargetFramework>netstandard2.0</TargetFramework>
+        <Authors>Anton Moldovan</Authors>
+        <Company>NBomber</Company>
+        <Version>4.0.0-beta</Version>
+        <Copyright>NBomber@2022</Copyright>
+        <IncludeSymbols>true</IncludeSymbols>
+        <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+        <PackageLicenseFile>LICENSE</PackageLicenseFile>
+        <PackageIcon>nbomber_icon.png</PackageIcon>
+        <RepositoryUrl>https://github.com/PragmaticFlow/NBomber.Data</RepositoryUrl>
+        <PackageTags>load-testing, performance-testing, integration-testing, fsharp</PackageTags>
+        <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
+        <Description>The package provides functionality for NBomber to work with data (data feeds, data generators)</Description>
+        <Title>NBomber.Data</Title>
     </PropertyGroup>
 
     <ItemGroup>
@@ -10,6 +23,11 @@
         <Compile Include="DataFeed.fs" />
     </ItemGroup>
 
+    <ItemGroup>
+        <None Include="../../LICENSE" Pack="true" Visible="false" PackagePath="" />
+        <None Include="../../assets/nbomber_icon.png" Pack="true" Visible="false" PackagePath="" />
+    </ItemGroup>
+    
     <ItemGroup>
         <PackageReference Include="CsvHelper" Version="30.0.1" />
         <PackageReference Include="NBomber.Contracts" Version="4.0.0-beta12" />
