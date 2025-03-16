@@ -23,7 +23,7 @@ namespace NBomber.Data.FSharp
             { new IDataFeed<'T> with
                 member _.Items = _items
                 member _.GetNextItem(scenarioInfo) =
-                    let index = scenarioInfo.ThreadNumber % _items.Length
+                    let index = scenarioInfo.InstanceNumber % _items.Length
                     _items[index]
             }     
         
