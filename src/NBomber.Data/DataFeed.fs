@@ -2,9 +2,25 @@
 
 open NBomber.Contracts
 
-/// DataFeed helps inject test data into your load test. It represents a data source.
+/// <summary>
+/// Represents a data source for feeding test data into a load test scenario.
+/// </summary>
+/// <typeparam name="T">
+/// The type of data items provided by the feed.
+/// </typeparam>
 type IDataFeed<'T> =    
+    /// Gets the full collection of data items available in the feed.    
     abstract Items: 'T[]
+    
+    /// <summary>
+    /// Retrieves the next data item from the feed based on the provided scenario context.
+    /// </summary>
+    /// <param name="scenarioInfo">
+    /// Contains contextual information about the executing scenario, which may influence data selection logic.
+    /// </param>
+    /// <returns>
+    /// A single data item of type <typeparamref name="T"/> to be used in the scenario.
+    /// </returns>
     abstract GetNextItem: scenarioInfo:ScenarioInfo -> 'T
 
 namespace NBomber.Data.FSharp
