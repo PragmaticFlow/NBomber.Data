@@ -352,3 +352,5 @@ MigrationBackup/
 # JetBrains Rider
 .idea/
 *.sln.iml
+/examples/CSharp/*.db
+/examples/CSharp/reports
