@@ -6,9 +6,8 @@ using CsvHelper.Configuration;
 
 namespace NBomber.LargeData;
 
-// Memory test while InitData with GC.GetTotalMemory(true) - 1_000_000_000
 // concurrency scenario: copies 100, during 1 minute, circular js.totalMemory + execution time
-public class JsonStream<T> : IEnumerable<T>
+public class JsonStream<T> : IEnumerable<T>, IDisposable
 {
     private readonly Stream _stream;
 
@@ -25,9 +24,14 @@ public class JsonStream<T> : IEnumerable<T>
     }
 
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+
+    public void Dispose()
+    {
+        _stream?.Dispose();
+    }
 }
 
-public class CsvStream<T> : IEnumerable<T>
+public class CsvStream<T> : IEnumerable<T>, IDisposable
 {
     private readonly Stream _stream;
 
@@ -44,6 +48,11 @@ public class CsvStream<T> : IEnumerable<T>
     }
 
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+
+    public void Dispose()
+    {
+        _stream?.Dispose();
+    }
 }
 
 public static class LargeData
@@ -51,7 +60,7 @@ public static class LargeData
     /// <summary>
     /// Opens a typed JSON stream from a JSON file or URL without loading all data into memory.
     /// </summary>
-    public static IEnumerable<T> OpenJsonStream<T>(string path)
+    public static JsonStream<T> OpenJsonStream<T>(string path)
     {
         var stream = Uri.IsWellFormedUriString(path, UriKind.Absolute)
             ? new HttpClient().GetStreamAsync(path).GetAwaiter().GetResult()
@@ -63,7 +72,7 @@ public static class LargeData
     /// <summary>
     /// Opens a typed CSV stream from a CSV file or URL without loading all data into memory.
     /// </summary>
-    public static IEnumerable<T> OpenCsvStream<T>(string path)
+    public static CsvStream<T> OpenCsvStream<T>(string path)
     {
         var stream = Uri.IsWellFormedUriString(path, UriKind.Absolute)
             ? new HttpClient().GetStreamAsync(path).GetAwaiter().GetResult()

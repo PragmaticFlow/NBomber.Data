@@ -1,0 +1,14 @@
+{
+  "Local": {
+    "TestFileSizeMB": 1024,
+    "MaxExecutionTimeMs": 1,
+    "MaxAllowedMemoryMB": 100,
+    "MaxAllowedMemoryMBConcurrency": 200
+  },
+  "CI": {
+    "TestFileSizeMB": 1024,
+    "MaxExecutionTimeMs": 1,
+    "MaxAllowedMemoryMB": 100,
+    "MaxAllowedMemoryMBConcurrency": 450
+  }
+}

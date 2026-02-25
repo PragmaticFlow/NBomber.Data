@@ -1,7 +1,5 @@
 ﻿using MessagePack;
 using NBomber.CSharp;
-using NBomber.Data;
-using NBomber.Data.CSharp;
 using NBomber.LargeData;
 
 ////var data = new[] {1, 2, 3, 4, 5};
@@ -18,16 +16,19 @@ using NBomber.LargeData;
 ////var feed = DataFeed.Random(data);
 //var feed = DataFeed.Circular(data);
 
-var data = LargeData.OpenJsonStream<User>("users-feed-data.json");
-var dataFeed = LargeDataFeed.Random(data);
+await using var dataFeed = LargeDataFeed.InitConstant<User>();
 
 var scenario = Scenario.Create("scenario", async context =>
 {
-    var item = dataFeed.GetNextItem(context.ScenarioInfo);
-    context.Logger.Information("Data from feed: {0}", item.Name);
+    var item = await dataFeed.GetNextItem(context.ScenarioInfo);
 
-    await Task.Delay(1_000);
     return Response.Ok();
+})
+.WithInit(context =>
+{
+    using var stream = LargeData.OpenJsonStream<User>("users-feed-data.json");
+    dataFeed.LoadData(stream);
+    return Task.CompletedTask;
 })
 .WithoutWarmUp()
 .WithLoadSimulations(Simulation.KeepConstant(copies: 2, during: TimeSpan.FromSeconds(30)));
