@@ -6,9 +6,13 @@ using CsvHelper.Configuration;
 
 namespace NBomber.LargeData;
 
-// Memory test while InitData with GC.GetTotalMemory(true) - 1_000_000_000
-// concurrency scenario: copies 100, during 1 minute, circular js.totalMemory + execution time
-public class JsonStream<T> : IEnumerable<T>
+/// <summary>
+/// Represents a streaming JSON data source for processing large JSON files.
+/// Designed for datasets that are too large to fit in memory.
+/// Items are deserialized on-demand as you iterate through the stream.
+/// </summary>
+/// <typeparam name="T">The type each JSON element is deserialized into.</typeparam>
+public class JsonStream<T> : IEnumerable<T>, IDisposable
 {
     private readonly Stream _stream;
 
@@ -25,9 +29,20 @@ public class JsonStream<T> : IEnumerable<T>
     }
 
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+
+    public void Dispose()
+    {
+        _stream?.Dispose();
+    }
 }
 
-public class CsvStream<T> : IEnumerable<T>
+/// <summary>
+/// Represents a streaming CSV data source for processing large CSV files.
+/// Designed for datasets that are too large to fit in memory.
+/// Rows are parsed on-demand as you iterate through the stream.
+/// </summary>
+/// <typeparam name="T">The type each CSV row is mapped into.</typeparam>
+public class CsvStream<T> : IEnumerable<T>, IDisposable
 {
     private readonly Stream _stream;
 
@@ -44,14 +59,27 @@ public class CsvStream<T> : IEnumerable<T>
     }
 
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+
+    public void Dispose()
+    {
+        _stream?.Dispose();
+    }
 }
 
+/// <summary>
+/// Provides utility functions for streaming large data files.
+/// Designed for datasets that are too large to fit in memory.
+/// </summary>
 public static class LargeData
 {
     /// <summary>
-    /// Opens a typed JSON stream from a JSON file or URL without loading all data into memory.
+    /// Opens a streaming JSON data source from a file.
+    /// Items are deserialized on-demand without loading the entire file into memory.
     /// </summary>
-    public static IEnumerable<T> OpenJsonStream<T>(string path)
+    /// <param name="path">The path to the JSON file.</param>
+    /// <typeparam name="T">The type each JSON element is deserialized into.</typeparam>
+    /// <returns>A <see cref="JsonStream{T}"/> that streams data from the file.</returns>
+    public static JsonStream<T> OpenJsonStream<T>(string path)
     {
         var stream = Uri.IsWellFormedUriString(path, UriKind.Absolute)
             ? new HttpClient().GetStreamAsync(path).GetAwaiter().GetResult()
@@ -61,9 +89,13 @@ public static class LargeData
     }
 
     /// <summary>
-    /// Opens a typed CSV stream from a CSV file or URL without loading all data into memory.
+    /// Opens a streaming CSV data source from a file.
+    /// Rows are parsed on-demand without loading the entire file into memory.
     /// </summary>
-    public static IEnumerable<T> OpenCsvStream<T>(string path)
+    /// <param name="path">The path to the CSV file.</param>
+    /// <typeparam name="T">The type each CSV row is mapped into.</typeparam>
+    /// <returns>A <see cref="CsvStream{T}"/> that streams data from the file.</returns>
+    public static CsvStream<T> OpenCsvStream<T>(string path)
     {
         var stream = Uri.IsWellFormedUriString(path, UriKind.Absolute)
             ? new HttpClient().GetStreamAsync(path).GetAwaiter().GetResult()
