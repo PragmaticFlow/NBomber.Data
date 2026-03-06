@@ -67,7 +67,89 @@ public class LargeDataTests
     }
 
     [Fact]
-    public async Task CircularDataFeed_GetNext_Should_Circular_Loop_Over_All_Data()
+    public async Task ConstantDataFeed_GetNextItem_Should_Return_Same_Data_Per_ScenarioInfo()
+    {
+        DataGenerator.GenerateLargeCsvFile(TestCsvFile, Settings.TestFileSizeBytes);
+
+        await using var dataFeed = LargeDataFeed.Constant<TestUser>();
+        using var csvStream = LargeData.LargeData.OpenCsvStream<TestUser>(TestCsvFile);
+        dataFeed.LoadData(csvStream);
+
+        var totalRows = GetCsvRowCount(TestCsvFile);
+        var recordedItems = new Dictionary<long, TestUser>();
+
+        var scenario = Scenario.Create("scenario", async context =>
+        {
+            var instanceNumber = context.ScenarioInfo.InstanceNumber;
+            var item = await dataFeed.GetNextItem(context.ScenarioInfo);
+
+            // Each instance should always get the same item
+            if (recordedItems.TryGetValue(instanceNumber, out var previousItem))
+            {
+                Assert.Equal(previousItem.Id, item.Id);
+                Assert.Equal(previousItem.Name, item.Name);
+            }
+            else
+            {
+                recordedItems[instanceNumber] = item;
+            }
+
+            return Response.Ok();
+        })
+        .WithoutWarmUp()
+        .WithLoadSimulations(Simulation.IterationsForConstant(copies: 10, iterations: 100));
+
+        NBomberRunner
+            .RegisterScenarios(scenario)
+            .Run();
+
+        // Verify that different instances got different items (based on instance number)
+        Assert.True(recordedItems.Count == 10, "Should have recorded 10 different instances");
+
+        CleanupTestResources(TestCsvFile);
+    }
+
+    [Fact]
+    public async Task RandomDataFeed_GetNextItem_Should_Return_Random_Data_Per_ScenarioInfo()
+    {
+        DataGenerator.GenerateLargeCsvFile(TestCsvFile, Settings.TestFileSizeBytes);
+
+        await using var dataFeed = LargeDataFeed.Random<TestUser>();
+        using var csvStream = LargeData.LargeData.OpenCsvStream<TestUser>(TestCsvFile);
+        dataFeed.LoadData(csvStream);
+
+        var receivedIds = new HashSet<int>();
+        var requestCount = 0;
+
+        var scenario = Scenario.Create("scenario", async context =>
+        {
+            var item = await dataFeed.GetNextItem(context.ScenarioInfo);
+
+            receivedIds.Add(item.Id);
+            requestCount++;
+
+            return Response.Ok();
+        })
+        .WithoutWarmUp()
+        .WithLoadSimulations(Simulation.IterationsForConstant(copies: 1, iterations: 1000));
+
+        NBomberRunner
+            .RegisterScenarios(scenario)
+            .Run();
+
+        // Verify that we got different items (randomness)
+        // With 1000 iterations, we should get a good variety of unique IDs
+        var uniqueCount = receivedIds.Count;
+        var uniquenessRatio = (double)uniqueCount / requestCount;
+
+        Assert.True(uniquenessRatio > 0.5,
+            $"Random feed should return varied data. Uniqueness ratio: {uniquenessRatio:F2} (expected > 0.5)");
+
+        CleanupTestResources(TestCsvFile);
+    }
+
+    [Fact]
+    public async Task CircularDataFeed_GetNextItem_Should_Circular_Loop_Over_All_Data()
     {
         DataGenerator.GenerateLargeCsvFile(TestCsvFile, Settings.TestFileSizeBytes);
         var fullLoopCompletedTimes = 0;
