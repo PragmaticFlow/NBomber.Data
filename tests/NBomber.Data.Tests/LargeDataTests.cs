@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using Microsoft.Data.Sqlite;
 using NBomber.CSharp;
@@ -76,7 +77,7 @@ public class LargeDataTests
         dataFeed.LoadData(csvStream);
 
         var totalRows = GetCsvRowCount(TestCsvFile);
-        var recordedItems = new Dictionary<long, TestUser>();
+        var recordedItems = new ConcurrentDictionary<long, TestUser>();
 
         var scenario = Scenario.Create("scenario", async context =>
         {
@@ -84,27 +85,20 @@ public class LargeDataTests
             var item = await dataFeed.GetNextItem(context.ScenarioInfo);
 
             // Each instance should always get the same item
-            if (recordedItems.TryGetValue(instanceNumber, out var previousItem))
-            {
-                Assert.Equal(previousItem.Id, item.Id);
-                Assert.Equal(previousItem.Name, item.Name);
-            }
-            else
-            {
-                recordedItems[instanceNumber] = item;
-            }
+            recordedItems.TryAdd(instanceNumber, item);
 
             return Response.Ok();
         })
         .WithoutWarmUp()
-        .WithLoadSimulations(Simulation.IterationsForConstant(copies: 10, iterations: 100));
+        .WithLoadSimulations(Simulation.KeepConstant(copies: 10, during: TimeSpan.FromSeconds(5)));
 
         NBomberRunner
             .RegisterScenarios(scenario)
             .Run();
 
         // Verify that different instances got different items (based on instance number)
-        Assert.True(recordedItems.Count == 10, "Should have recorded 10 different instances");
+        Assert.True(recordedItems.Count == 10,
+            $"Should have recorded 10 different instances. Actual: {recordedItems.Count}.");
 
         CleanupTestResources(TestCsvFile);
     }

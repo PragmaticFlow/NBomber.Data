@@ -1,4 +1,5 @@
-﻿using MessagePack;
+﻿using System.Buffers;
+using MessagePack;
 using Microsoft.Data.Sqlite;
 using NBomber.Contracts;
 
@@ -177,7 +178,7 @@ internal class SqliteDbRepository<T> : IAsyncDisposable
         return default!;
     }
 
-    internal long LoadBatch(List<T> batch, long startId, int count)
+    internal long LoadBatch(List<T> batch, long startId, int batchSize)
     {
         using var connection = GetConnection();
 
@@ -185,15 +186,64 @@ internal class SqliteDbRepository<T> : IAsyncDisposable
             startId = 1;
 
         batch.Clear();
-        var firstPart = QueryItems(connection, startId, count);
-        batch.AddRange(firstPart);
 
-        if (firstPart.Length < count)
+        var pooledArray = ArrayPool<T>.Shared.Rent(batchSize);
+        try
         {
-            var missingCount = count - firstPart.Length;
-            var secondPart = QueryItems(connection, 1, missingCount);
-            batch.AddRange(secondPart);
-            return missingCount + 1;
+            if (DataCount < batchSize)
+            {
+                return LoadBatchWithRepetition(connection, batch, pooledArray, batchSize);
+            }
+
+            return LoadBatchNormal(connection, batch, pooledArray, startId, batchSize);
+        }
+        finally
+        {
+            ArrayPool<T>.Shared.Return(pooledArray, clearArray: true);
+        }
+    }
+
+    private long LoadBatchWithRepetition(SqliteConnection connection, List<T> batch, T[] pooledArray, int count)
+    {
+        var itemsRead = QueryItems(connection, pooledArray, 1, (int)DataCount);
+
+        // Fill batch by repeating items cyclically
+        int added = 0;
+        while (added < count)
+        {
+            for (int i = 0; i < itemsRead; i++)
+            {
+                batch.Add(pooledArray[i]);
+                added++;
+                if (added >= count)
+                    break;
+            }
+        }
+
+        return 1; // Always restart from beginning for small datasets
+    }
+
+    private long LoadBatchNormal(SqliteConnection connection, List<T> batch, T[] pooledArray, long startId, int count)
+    {
+        var firstPartCount = QueryItems(connection, pooledArray, startId, count);
+
+        for (int i = 0; i < firstPartCount; i++)
+        {
+            batch.Add(pooledArray[i]);
+        }
+
+        if (firstPartCount < count)
+        {
+            var missingCount = count - firstPartCount;
+            // Reuse same pooled array for second part
+            var secondPartCount = QueryItems(connection, pooledArray, 1, missingCount);
+
+            for (int i = 0; i < secondPartCount; i++)
+            {
+                batch.Add(pooledArray[i]);
+            }
+
+            return secondPartCount + 1;
         }
 
         var nextId = startId + count;
@@ -203,9 +253,8 @@ internal class SqliteDbRepository<T> : IAsyncDisposable
         return nextId;
     }
 
-    private T[] QueryItems(SqliteConnection connection, long startId, int count)
+    private int QueryItems(SqliteConnection connection, T[] pooledArray, long startId, int count)
     {
-        var result = new T[count];
         using var selectCmd = connection.CreateCommand();
 
         selectCmd.CommandText = "SELECT data FROM nbomber_data WHERE id >= $startId AND id < $endId ORDER BY id";
@@ -213,15 +262,15 @@ internal class SqliteDbRepository<T> : IAsyncDisposable
         selectCmd.Parameters.AddWithValue("$endId", startId + count);
 
         using var reader = selectCmd.ExecuteReader();
-        int itemsRead = 0;
+        var itemsRead = 0;
         while (reader.Read() && itemsRead < count)
         {
             var binaryData = (byte[])reader.GetValue(0);
-            result[itemsRead] = MessagePackSerializer.Deserialize<T>(binaryData, _deserializeOptions);
+            pooledArray[itemsRead] = MessagePackSerializer.Deserialize<T>(binaryData, _deserializeOptions);
             itemsRead++;
         }
 
-        return result;
+        return itemsRead;
     }
 
     internal void LoadBatchByIds(List<T> batch, long[] ids, int startIndex, int count)
