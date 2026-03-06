@@ -36,8 +36,8 @@ public static class LargeDataFeed
     /// Creates DataFeed that picks constant value per Scenario copy.
     /// Every Scenario copy will have unique constant value.
     /// </summary>
-    public static IAsyncDataFeed<T> Constant<T>() =>
-        new ConstantLargeDataFeed<T>();
+    public static IAsyncDataFeed<T> Constant<T>(int batchSize = 1000) =>
+        new ConstantLargeDataFeed<T>(batchSize);
 
     /// <summary>
     /// Creates DataFeed that randomly picks an item per GetNextItem() invocation.
@@ -277,20 +277,38 @@ internal class SqliteDbRepository<T> : IAsyncDisposable
 
 internal class ConstantLargeDataFeed<T> : IAsyncDataFeed<T>, IAsyncDisposable
 {
-    private SqliteDbRepository<T> _db = new();
+    private int BatchSize = 1000;
+    private readonly SqliteDbRepository<T> _db = new();
+    private List<T> _cachedBatch = new();
+    private long _cachedBatchEndId = 0;
 
-    public ConstantLargeDataFeed()
+    public ConstantLargeDataFeed(int batchSize)
     {
+        BatchSize = batchSize;
     }
 
     public ValueTask<T> GetNextItem(ScenarioInfo scenarioInfo)
     {
-        return ValueTask.FromResult(_db.GetById(scenarioInfo.InstanceNumber % _db.DataCount + 1));
+        var id = scenarioInfo.InstanceNumber % _db.DataCount + 1;
+
+        // Check if ID is within pre-loaded batch range (1 to _cachedBatchEndId)
+        if (id <= _cachedBatchEndId)
+        {
+            return ValueTask.FromResult(_cachedBatch[(int)(id - 1)]);
+        }
+
+        // Fallback to DB query (SQLite has 500MB cache configured)
+        return ValueTask.FromResult(_db.GetById(id));
     }
 
     public void LoadData(IEnumerable<T> data)
     {
         _db.LoadData(data);
+
+        // Load initial batch of first N items (most commonly accessed for constant feed)
+        var batchSize = Math.Min(BatchSize, _db.DataCount);
+        _db.LoadBatch(_cachedBatch, 1, (int)batchSize);
+        _cachedBatchEndId = batchSize;
     }
 
     public async ValueTask DisposeAsync()
