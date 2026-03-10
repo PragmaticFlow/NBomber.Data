@@ -22,11 +22,6 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\..\src\NBomber.Data\NBomber.Data.fsproj" />
-      <ProjectReference Include="..\..\src\NBomber.LargeData\NBomber.LargeData.csproj" />
-    </ItemGroup>
-
-    <ItemGroup>
       <None Update="users-feed-data.csv">
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       </None>
@@ -37,6 +32,10 @@
 
     <ItemGroup>
       <PackageReference Include="NBomber" Version="6.1.0" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\..\src\NBomber.Data\NBomber.Data.csproj" />
     </ItemGroup>
 
 </Project>

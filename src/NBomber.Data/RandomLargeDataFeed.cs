@@ -1,8 +1,12 @@
-﻿using NBomber.Contracts;
+using NBomber.Contracts;
+using System;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace NBomber.LargeData;
 
-internal class CircularLargeDataFeed<T> : IAsyncDataFeed<T>, IAsyncDisposable
+internal class RandomLargeDataFeed<T> : IAsyncDataFeed<T>, IAsyncDisposable
 {
     private const int BatchCount = 4;
     private readonly int _batchSize;
@@ -11,12 +15,15 @@ internal class CircularLargeDataFeed<T> : IAsyncDataFeed<T>, IAsyncDisposable
     private readonly List<T>[] _batches;
     private volatile int _activeBatchIndex = 0;
     private int _currentIndexInBatch = -1;
-    private long _nextDbIdToLoad = 1;
     private Task? _nextBatchLoadTask;
     private Serilog.ILogger? _logger;
     private bool _isSmallDataset;
 
-    public CircularLargeDataFeed(int elementsInMemoryCount)
+    [ThreadStatic]
+    private static Random? _random;
+    private static Random RandomInstance => _random ??= new Random();
+
+    public RandomLargeDataFeed(int elementsInMemoryCount)
     {
         elementsInMemoryCount = elementsInMemoryCount > 100 ? elementsInMemoryCount : 100;
         _batchSize = elementsInMemoryCount / BatchCount;
@@ -36,7 +43,23 @@ internal class CircularLargeDataFeed<T> : IAsyncDataFeed<T>, IAsyncDisposable
         _isSmallDataset = _db.DataCount < _batchSize;
 
         for (int i = 0; i < BatchCount; i++)
-            _nextDbIdToLoad = _db.LoadBatch(_batches[i], _nextDbIdToLoad, _batchSize);
+            PopulateBatchWithRandomRecords(_batches[i]);
+    }
+
+    private void PopulateBatchWithRandomRecords(List<T> batch)
+    {
+        var ids = new long[_batchSize];
+        for (int i = 0; i < _batchSize; i++)
+            ids[i] = NextInt64(1, _db.DataCount + 1);
+
+        _db.LoadBatchByIds(batch, ids, 0, _batchSize);
+    }
+
+    private static long NextInt64(long minValue, long maxValue)
+    {
+        var range = (ulong)(maxValue - minValue);
+        ulong randomValue = ((ulong)RandomInstance.Next() << 32) | (uint)RandomInstance.Next();
+        return (long)(randomValue % range) + minValue;
     }
 
     public async ValueTask<T> GetNextItem(ScenarioInfo scenarioInfo)
@@ -70,12 +93,12 @@ internal class CircularLargeDataFeed<T> : IAsyncDataFeed<T>, IAsyncDisposable
                     if (_activeBatchIndex >= BatchCount)
                         _activeBatchIndex = 0;
 
-                    // For small datasets, both batches are pre-filled with repeated copies
-                    // of all data, so we don't need to reload - just switch between them
+                    // For small datasets, all batches are pre-filled with random items,
+                    // so we don't need to reload - just switch between them
                     if (!_isSmallDataset)
                     {
                         // Start loading the exhausted batch in background
-                        _nextBatchLoadTask = Task.Run(() => _nextDbIdToLoad = _db.LoadBatch(_batches[exhaustedBatchIndex], _nextDbIdToLoad, _batchSize));
+                        _nextBatchLoadTask = Task.Run(() => PopulateBatchWithRandomRecords(_batches[exhaustedBatchIndex]));
                     }
 
                     // Reset index
@@ -94,9 +117,11 @@ internal class CircularLargeDataFeed<T> : IAsyncDataFeed<T>, IAsyncDisposable
         }
     }
 
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
         if (_db != null)
             _db.DisposeAsync();
+
+        return default;
     }
 }
