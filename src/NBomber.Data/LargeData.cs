@@ -1,5 +1,10 @@
+using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
+using System.Linq;
+using System.Net.Http;
 using System.Text.Json;
 using CsvHelper;
 using CsvHelper.Configuration;
@@ -24,8 +29,9 @@ public class JsonStream<T> : IEnumerable<T>, IDisposable
     public IEnumerator<T> GetEnumerator()
     {
         return JsonSerializer.DeserializeAsyncEnumerable<T>(_stream)
-                             .ToBlockingEnumerable()
-                             .GetEnumerator();
+                             .ToEnumerable()
+                             .Where(x => x != null)
+                             .GetEnumerator()!;
     }
 
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();

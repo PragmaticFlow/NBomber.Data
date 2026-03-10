@@ -1,4 +1,7 @@
-﻿using NBomber.Contracts;
+using NBomber.Contracts;
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace NBomber.LargeData;
 
@@ -22,10 +25,10 @@ internal class ConstantLargeDataFeed<T> : IAsyncDataFeed<T>, IAsyncDisposable
         // Check if ID is within pre-loaded batch range (1 to _cachedBatchEndId)
         if (id <= _cachedBatchEndId)
         {
-            return ValueTask.FromResult(_cachedBatch[(int)(id - 1)]);
+            return new ValueTask<T>(_cachedBatch[(int)(id - 1)]);
         }
 
-        return ValueTask.FromResult(_db.GetById(id));
+        return new ValueTask<T>(_db.GetById(id));
     }
 
     public void LoadData(Serilog.ILogger logger, IEnumerable<T> data)
@@ -42,9 +45,11 @@ internal class ConstantLargeDataFeed<T> : IAsyncDataFeed<T>, IAsyncDisposable
         _cachedBatchEndId = batchSize;
     }
 
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
         if (_db != null)
             _db.DisposeAsync();
+
+        return default;
     }
 }
