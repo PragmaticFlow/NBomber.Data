@@ -25,7 +25,7 @@ var scenario = Scenario.Create("scenario", async context =>
 })
 .WithInit(context =>
 {
-    using var stream = LargeData.OpenJsonStream<User>("users-feed-data.json");
+    using var stream = LargeData.CreateJsonStream<User>("users-feed-data.json");
     dataFeed.LoadData(context.Logger, stream);
     return Task.CompletedTask;
 })

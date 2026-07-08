@@ -79,13 +79,13 @@ public class CsvStream<T> : IEnumerable<T>, IDisposable
 public static class LargeData
 {
     /// <summary>
-    /// Opens a streaming JSON data source from a file.
+    /// Creates a streaming JSON data source from a file.
     /// Items are deserialized on-demand without loading the entire file into memory.
     /// </summary>
     /// <param name="path">The path to the JSON file.</param>
     /// <typeparam name="T">The type each JSON element is deserialized into.</typeparam>
     /// <returns>A <see cref="JsonStream{T}"/> that streams data from the file.</returns>
-    public static JsonStream<T> OpenJsonStream<T>(string path)
+    public static JsonStream<T> CreateJsonStream<T>(string path)
     {
         var stream = Uri.IsWellFormedUriString(path, UriKind.Absolute)
             ? new HttpClient().GetStreamAsync(path).GetAwaiter().GetResult()
@@ -95,13 +95,13 @@ public static class LargeData
     }
 
     /// <summary>
-    /// Opens a streaming CSV data source from a file.
+    /// Creates a streaming CSV data source from a file.
     /// Rows are parsed on-demand without loading the entire file into memory.
     /// </summary>
     /// <param name="path">The path to the CSV file.</param>
     /// <typeparam name="T">The type each CSV row is mapped into.</typeparam>
     /// <returns>A <see cref="CsvStream{T}"/> that streams data from the file.</returns>
-    public static CsvStream<T> OpenCsvStream<T>(string path)
+    public static CsvStream<T> CreateCsvStream<T>(string path)
     {
         var stream = Uri.IsWellFormedUriString(path, UriKind.Absolute)
             ? new HttpClient().GetStreamAsync(path).GetAwaiter().GetResult()
