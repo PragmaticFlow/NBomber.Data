@@ -69,7 +69,7 @@ namespace NBomber.Data
 
     internal class CircularDataFeed<T> : IDataFeed<T>
     {
-        private readonly object _lock = new object();
+        private readonly object _lock = new();
         private readonly IEnumerator<T> _enumerator;
 
         public T[] Items { get; }
@@ -101,7 +101,7 @@ namespace NBomber.Data
 
     internal class RandomDataFeed<T> : IDataFeed<T>
     {
-        private static readonly Random _random = new Random();
+        private static readonly Random _random = new();
 
         public T[] Items { get; }
 
