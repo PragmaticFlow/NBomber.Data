@@ -1,6 +1,6 @@
 ﻿using MessagePack;
 using NBomber.CSharp;
-using NBomber.LargeData;
+using NBomber.Data;
 
 //var data = new[] {1, 2, 3, 4, 5};
 

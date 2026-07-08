@@ -1,17 +1,17 @@
-﻿using NBomber.Contracts;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using NBomber.Contracts;
 
-namespace NBomber.LargeData
+namespace NBomber.Data
 {
-    internal class CircularLargeDataFeed<T> : IAsyncDataFeed<T>, IAsyncDisposable
+    internal class CircularLargeDataFeed<T> : IAsyncDataFeed<T>
     {
         private const int BatchCount = 4;
         private readonly int _batchSize;
-        private readonly SqliteDbRepository<T> _db = new SqliteDbRepository<T>();
-        private readonly object _switchLock = new object();
+        private readonly SqliteDbRepository<T> _db = new();
+        private readonly object _switchLock = new();
         private readonly List<T>[] _batches;
         private volatile int _activeBatchIndex = 0;
         private int _currentIndexInBatch = -1;

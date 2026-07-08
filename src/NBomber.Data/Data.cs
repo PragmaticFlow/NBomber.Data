@@ -16,6 +16,7 @@ public static class Data
 {
     [ThreadStatic]
     private static Random? _random;
+    private static readonly HttpClient HttpClient = new();
     private static Random RandomInstance => _random ??= new Random();
 
     /// <summary>
@@ -60,8 +61,7 @@ public static class Data
     {
         if (Uri.IsWellFormedUriString(path, UriKind.Absolute))
         {
-            using var client = new HttpClient();
-            return client.GetStreamAsync(path).GetAwaiter().GetResult();
+            return HttpClient.GetStreamAsync(path).GetAwaiter().GetResult();
         }
 
         return File.OpenRead(path);

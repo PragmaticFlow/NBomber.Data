@@ -9,7 +9,7 @@ using System.Text.Json;
 using CsvHelper;
 using CsvHelper.Configuration;
 
-namespace NBomber.LargeData;
+namespace NBomber.Data;
 
 /// <summary>
 /// Represents a streaming JSON data source for processing large JSON files.

@@ -1,6 +1,5 @@
 using Microsoft.Data.Sqlite;
 using NBomber.CSharp;
-using NBomber.LargeData;
 using Serilog;
 using System.Collections.Concurrent;
 
@@ -26,7 +25,7 @@ public class LargeDataTests
         monitor.Start();
 
         await using var dataFeed = LargeDataFeed.Random<TestUser>();
-        using var csvStream = LargeData.LargeData.OpenCsvStream<TestUser>(TestCsvFile);
+        using var csvStream = LargeData.OpenCsvStream<TestUser>(TestCsvFile);
 
         var logger = new LoggerConfiguration().CreateLogger();
         dataFeed.LoadData(logger, csvStream);
@@ -54,7 +53,7 @@ public class LargeDataTests
         monitor.Start();
 
         await using var dataFeed = LargeDataFeed.Random<TestUser>();
-        using var jsonStream = LargeData.LargeData.OpenJsonStream<TestUser>(TestJsonFile);
+        using var jsonStream = LargeData.OpenJsonStream<TestUser>(TestJsonFile);
 
         var logger = new LoggerConfiguration().CreateLogger();
         dataFeed.LoadData(logger, jsonStream);
@@ -93,7 +92,7 @@ public class LargeDataTests
         })
         .WithInit(context =>
         {
-            using var stream = LargeData.LargeData.OpenCsvStream<TestUser>(TestCsvFile);
+            using var stream = LargeData.OpenCsvStream<TestUser>(TestCsvFile);
             dataFeed.LoadData(context.Logger, stream);
 
             return Task.CompletedTask;
@@ -133,7 +132,7 @@ public class LargeDataTests
         })
         .WithInit(context =>
         {
-            using var stream = LargeData.LargeData.OpenCsvStream<TestUser>(TestCsvFile);
+            using var stream = LargeData.OpenCsvStream<TestUser>(TestCsvFile);
             dataFeed.LoadData(context.Logger, stream);
 
             return Task.CompletedTask;
@@ -185,7 +184,7 @@ public class LargeDataTests
         })
         .WithInit(context =>
         {
-            using var stream = LargeData.LargeData.OpenCsvStream<TestUser>(TestCsvFile);
+            using var stream = LargeData.OpenCsvStream<TestUser>(TestCsvFile);
             dataFeed.LoadData(context.Logger, stream);
 
             return Task.CompletedTask;
@@ -229,7 +228,7 @@ public async Task Concurrency_Circular_GetNext_Should_Not_Use_Memory_Above_Limit
     })
     .WithInit(context =>
     {
-        using var stream = LargeData.LargeData.OpenCsvStream<TestUser>(TestCsvFile);
+        using var stream = LargeData.OpenCsvStream<TestUser>(TestCsvFile);
         dataFeed.LoadData(context.Logger, stream);
 
         monitor.Start();

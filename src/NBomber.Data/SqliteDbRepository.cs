@@ -1,13 +1,12 @@
-﻿using MessagePack;
-using Microsoft.Data.Sqlite;
-using System;
+﻿using System;
 using System.Buffers;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Threading.Tasks;
+using MessagePack;
+using Microsoft.Data.Sqlite;
 
-namespace NBomber.LargeData
+namespace NBomber.Data
 {
     internal class SqliteDbRepository<T> : IAsyncDisposable
     {
@@ -64,7 +63,7 @@ namespace NBomber.LargeData
             pragmaCmd.CommandText = @"
                 PRAGMA page_size = 4096;
                 PRAGMA synchronous = OFF;
-                PRAGMA journal_mode = MEMORY;
+                PRAGMA journal_mode = OFF;
                 PRAGMA temp_store = MEMORY;
                 PRAGMA cache_size = -64000;
                 PRAGMA mmap_size = 268435456;";
@@ -290,9 +289,7 @@ namespace NBomber.LargeData
                 if (File.Exists(_dbPath))
                     File.Delete(_dbPath);
             }
-            catch
-            {
-            }
+            catch { }
 
             return default;
         }

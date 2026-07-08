@@ -1,12 +1,12 @@
-using NBomber.Contracts;
 using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using NBomber.Contracts;
 
-namespace NBomber.LargeData;
+namespace NBomber.Data;
 
-internal class RandomLargeDataFeed<T> : IAsyncDataFeed<T>, IAsyncDisposable
+internal class RandomLargeDataFeed<T> : IAsyncDataFeed<T>
 {
     private const int BatchCount = 4;
     private readonly int _batchSize;

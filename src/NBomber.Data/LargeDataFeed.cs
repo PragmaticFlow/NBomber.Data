@@ -1,9 +1,9 @@
-﻿using NBomber.Contracts;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using NBomber.Contracts;
 
-namespace NBomber.LargeData;
+namespace NBomber.Data;
 
 /// <summary>
 /// Represents an async data source for feeding large test data into a load test scenario.

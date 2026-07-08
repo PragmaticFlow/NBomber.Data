@@ -1,16 +1,16 @@
-using NBomber.Contracts;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using NBomber.Contracts;
 
-namespace NBomber.LargeData;
+namespace NBomber.Data;
 
-internal class ConstantLargeDataFeed<T> : IAsyncDataFeed<T>, IAsyncDisposable
+internal class ConstantLargeDataFeed<T> : IAsyncDataFeed<T>
 {
-    private int _batchSize = 100;
+    private readonly int _batchSize = 100;
     private readonly SqliteDbRepository<T> _db = new();
-    private List<T> _cachedBatch = new();
-    private long _cachedBatchEndId = 0;
+    private readonly List<T> _cachedBatch = new();
+    private long _cachedBatchEndIndex = 0;
     private Serilog.ILogger? _logger;
 
     public ConstantLargeDataFeed(int elementsInMemoryCount)
@@ -20,15 +20,15 @@ internal class ConstantLargeDataFeed<T> : IAsyncDataFeed<T>, IAsyncDisposable
 
     public ValueTask<T> GetNextItem(ScenarioInfo scenarioInfo)
     {
-        var id = scenarioInfo.InstanceNumber % _db.DataCount + 1;
+        var index = scenarioInfo.InstanceNumber % _db.DataCount + 1;
 
-        // Check if ID is within pre-loaded batch range (1 to _cachedBatchEndId)
-        if (id <= _cachedBatchEndId)
+        // Check if index is within pre-loaded batch range (1 to _cachedBatchEndIndex)
+        if (index <= _cachedBatchEndIndex)
         {
-            return new ValueTask<T>(_cachedBatch[(int)(id - 1)]);
+            return new ValueTask<T>(_cachedBatch[(int)(index - 1)]);
         }
 
-        return new ValueTask<T>(_db.GetById(id));
+        return new ValueTask<T>(_db.GetById(index));
     }
 
     public void LoadData(Serilog.ILogger logger, IEnumerable<T> data)
@@ -42,14 +42,12 @@ internal class ConstantLargeDataFeed<T> : IAsyncDataFeed<T>, IAsyncDisposable
         // Load initial batch of first N items (most commonly accessed for constant feed)
         var batchSize = Math.Min(_batchSize, _db.DataCount);
         _db.LoadBatch(_cachedBatch, 1, (int)batchSize);
-        _cachedBatchEndId = batchSize;
+        _cachedBatchEndIndex = batchSize;
     }
 
     public ValueTask DisposeAsync()
     {
-        if (_db != null)
-            _db.DisposeAsync();
-
-        return default;
+        _db.DisposeAsync();
+        return new ValueTask();
     }
 }
