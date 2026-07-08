@@ -1,5 +1,4 @@
-﻿using MessagePack;
-using NBomber.CSharp;
+﻿using NBomber.CSharp;
 using NBomber.Data;
 
 //var data = new[] {1, 2, 3, 4, 5};
@@ -37,12 +36,9 @@ NBomberRunner
     .RegisterScenarios(scenario)
     .Run();
 
-[MessagePackObject]
 public class User
 {
-    [Key(0)]
     public int Id { get; set; }
 
-    [Key(1)]
     public string Name { get; set; }
 }

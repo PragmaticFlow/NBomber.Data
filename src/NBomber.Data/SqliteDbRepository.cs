@@ -2,8 +2,8 @@
 using System.Buffers;
 using System.Collections.Generic;
 using System.IO;
+using System.Text.Json;
 using System.Threading.Tasks;
-using MessagePack;
 using Microsoft.Data.Sqlite;
 
 namespace NBomber.Data
@@ -14,9 +14,7 @@ namespace NBomber.Data
 
         private readonly string _connectionString;
         private readonly string _dbPath;
-        private readonly MessagePackSerializerOptions _deserializeOptions = MessagePackSerializerOptions.Standard
-                .WithCompression(MessagePackCompression.Lz4BlockArray)
-                .WithResolver(MessagePack.Resolvers.ContractlessStandardResolver.Instance);
+        private static readonly JsonSerializerOptions _jsonOptions = new(JsonSerializerDefaults.Web);
 
         internal SqliteDbRepository()
         {
@@ -82,11 +80,10 @@ namespace NBomber.Data
         {
             using var connection = GetWriteConnection();
 
-            var messagePackOptions = MessagePackSerializerOptions.Standard.WithCompression(MessagePackCompression.Lz4Block);
             const int batchSize = 1000;
 
             foreach (var batch in ChunkEnumerable(data, batchSize))
-                InsertBatch(connection, batch, messagePackOptions);
+                InsertBatch(connection, batch);
 
             using var cmd = connection.CreateCommand();
             cmd.CommandText = "SELECT COUNT(*) FROM nbomber_data";
@@ -94,7 +91,7 @@ namespace NBomber.Data
             DataCount = (long)(cmd.ExecuteScalar() ?? 0);
         }
 
-        private void InsertBatch(SqliteConnection connection, List<T> batch, MessagePackSerializerOptions messagePackOptions)
+        private void InsertBatch(SqliteConnection connection, List<T> batch)
         {
             using var transaction = connection.BeginTransaction();
             using var insertCmd = connection.CreateCommand();
@@ -107,7 +104,7 @@ namespace NBomber.Data
 
             foreach (var item in batch)
             {
-                dataParam.Value = MessagePackSerializer.Serialize(item, messagePackOptions);
+                dataParam.Value = JsonSerializer.SerializeToUtf8Bytes(item, _jsonOptions);
                 insertCmd.ExecuteNonQuery();
             }
 
@@ -126,7 +123,7 @@ namespace NBomber.Data
             if (reader.Read())
             {
                 var binaryData = (byte[])reader.GetValue(0);
-                return MessagePackSerializer.Deserialize<T>(binaryData, _deserializeOptions);
+                return JsonSerializer.Deserialize<T>(binaryData, _jsonOptions);
             }
 
             return default!;
@@ -220,7 +217,7 @@ namespace NBomber.Data
             while (reader.Read() && itemsRead < count)
             {
                 var binaryData = (byte[])reader.GetValue(0);
-                pooledArray[itemsRead] = MessagePackSerializer.Deserialize<T>(binaryData, _deserializeOptions);
+                pooledArray[itemsRead] = JsonSerializer.Deserialize<T>(binaryData, _jsonOptions);
                 itemsRead++;
             }
 
@@ -251,7 +248,7 @@ namespace NBomber.Data
             {
                 var id = reader.GetInt64(0);
                 var binaryData = (byte[])reader.GetValue(1);
-                var item = MessagePackSerializer.Deserialize<T>(binaryData, _deserializeOptions);
+                var item = JsonSerializer.Deserialize<T>(binaryData, _jsonOptions);
                 itemLookup[id] = item;
             }
 

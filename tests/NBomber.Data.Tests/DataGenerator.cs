@@ -1,7 +1,6 @@
 ﻿using Bogus;
 using CsvHelper;
 using CsvHelper.Configuration;
-using MessagePack;
 using System.Globalization;
 using System.Text.Json;
 
@@ -110,12 +109,9 @@ internal static class DataGenerator
     }
 }
 
-[MessagePackObject]
 public class TestUser
 {
-    [Key(0)]
     public int Id { get; set; }
 
-    [Key(1)]
     public string Name { get; set; }
 }
