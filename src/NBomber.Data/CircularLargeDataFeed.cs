@@ -4,106 +4,105 @@ using System.Threading;
 using System.Threading.Tasks;
 using NBomber.Contracts;
 
-namespace NBomber.Data
+namespace NBomber.Data;
+
+internal class CircularLargeDataFeed<T> : IAsyncDataFeed<T>
 {
-    internal class CircularLargeDataFeed<T> : IAsyncDataFeed<T>
+    private const int BatchCount = 4;
+    private readonly int _batchSize;
+    private readonly SqliteDbRepository<T> _db = new();
+    private readonly object _switchLock = new();
+    private readonly List<T>[] _batches;
+    private volatile int _activeBatchIndex = 0;
+    private int _currentIndexInBatch = -1;
+    private long _nextDbIdToLoad = 1;
+    private Task? _nextBatchLoadTask;
+    private Serilog.ILogger? _logger;
+    private bool _isSmallDataset;
+
+    public CircularLargeDataFeed(int elementsInMemoryCount)
     {
-        private const int BatchCount = 4;
-        private readonly int _batchSize;
-        private readonly SqliteDbRepository<T> _db = new();
-        private readonly object _switchLock = new();
-        private readonly List<T>[] _batches;
-        private volatile int _activeBatchIndex = 0;
-        private int _currentIndexInBatch = -1;
-        private long _nextDbIdToLoad = 1;
-        private Task? _nextBatchLoadTask;
-        private Serilog.ILogger? _logger;
-        private bool _isSmallDataset;
+        elementsInMemoryCount = elementsInMemoryCount > 100 ? elementsInMemoryCount : 100;
+        _batchSize = elementsInMemoryCount / BatchCount;
+        _batches = new List<T>[BatchCount];
+        for (int i = 0; i < BatchCount; i++)
+            _batches[i] = new List<T>(_batchSize);
+    }
 
-        public CircularLargeDataFeed(int elementsInMemoryCount)
+    public void LoadData(Serilog.ILogger logger, IEnumerable<T> data)
+    {
+        _logger = logger;
+        _db.LoadData(data);
+
+        if (_db.DataCount == 0)
+            throw new InvalidOperationException("Data source is empty. At least one item is required.");
+
+        _isSmallDataset = _db.DataCount < _batchSize;
+
+        for (int i = 0; i < BatchCount; i++)
+            _nextDbIdToLoad = _db.LoadBatch(_batches[i], _nextDbIdToLoad, _batchSize);
+    }
+
+    public async ValueTask<T> GetNextItem(ScenarioInfo scenarioInfo)
+    {
+        while (true)
         {
-            elementsInMemoryCount = elementsInMemoryCount > 100 ? elementsInMemoryCount : 100;
-            _batchSize = elementsInMemoryCount / BatchCount;
-            _batches = new List<T>[BatchCount];
-            for (int i = 0; i < BatchCount; i++)
-                _batches[i] = new List<T>(_batchSize);
-        }
+            var index = Interlocked.Increment(ref _currentIndexInBatch);
 
-        public void LoadData(Serilog.ILogger logger, IEnumerable<T> data)
-        {
-            _logger = logger;
-            _db.LoadData(data);
-
-            if (_db.DataCount == 0)
-                throw new InvalidOperationException("Data source is empty. At least one item is required.");
-
-            _isSmallDataset = _db.DataCount < _batchSize;
-
-            for (int i = 0; i < BatchCount; i++)
-                _nextDbIdToLoad = _db.LoadBatch(_batches[i], _nextDbIdToLoad, _batchSize);
-        }
-
-        public async ValueTask<T> GetNextItem(ScenarioInfo scenarioInfo)
-        {
-            while (true)
+            if (index < _batchSize)
             {
-                var index = Interlocked.Increment(ref _currentIndexInBatch);
+                var batch = _batches[_activeBatchIndex];
+                var item = batch[index];
+                return item;
+            }
 
-                if (index < _batchSize)
+            // Batch exhausted - need to switch
+            Task? currentBatchLoadTask = null;
+
+            lock (_switchLock)
+            {
+                // Double-check after acquiring lock
+                if (_currentIndexInBatch >= _batchSize)
                 {
-                    var batch = _batches[_activeBatchIndex];
-                    var item = batch[index];
-                    return item;
-                }
+                    currentBatchLoadTask = _nextBatchLoadTask;
 
-                // Batch exhausted - need to switch
-                Task? currentBatchLoadTask = null;
+                    // Get the batch that was just exhausted to reload in background
+                    var exhaustedBatchIndex = _activeBatchIndex;
 
-                lock (_switchLock)
-                {
-                    // Double-check after acquiring lock
-                    if (_currentIndexInBatch >= _batchSize)
+                    // Switch to next batch
+                    _activeBatchIndex++;
+                    if (_activeBatchIndex >= BatchCount)
+                        _activeBatchIndex = 0;
+
+                    // For small datasets, both batches are pre-filled with repeated copies
+                    // of all data, so we don't need to reload - just switch between them
+                    if (!_isSmallDataset)
                     {
-                        currentBatchLoadTask = _nextBatchLoadTask;
-
-                        // Get the batch that was just exhausted to reload in background
-                        var exhaustedBatchIndex = _activeBatchIndex;
-
-                        // Switch to next batch
-                        _activeBatchIndex++;
-                        if (_activeBatchIndex >= BatchCount)
-                            _activeBatchIndex = 0;
-
-                        // For small datasets, both batches are pre-filled with repeated copies
-                        // of all data, so we don't need to reload - just switch between them
-                        if (!_isSmallDataset)
-                        {
-                            // Start loading the exhausted batch in background
-                            _nextBatchLoadTask = Task.Run(() => _nextDbIdToLoad = _db.LoadBatch(_batches[exhaustedBatchIndex], _nextDbIdToLoad, _batchSize));
-                        }
-
-                        // Reset index
-                        _currentIndexInBatch = -1;
+                        // Start loading the exhausted batch in background
+                        _nextBatchLoadTask = Task.Run(() => _nextDbIdToLoad = _db.LoadBatch(_batches[exhaustedBatchIndex], _nextDbIdToLoad, _batchSize));
                     }
-                }
 
-                // Wait OUTSIDE the lock to allow other threads to proceed
-                if (currentBatchLoadTask != null)
-                {
-                    if (currentBatchLoadTask.Status != TaskStatus.RanToCompletion)
-                        _logger?.Warning("You should use bigger elementsInMemoryCount, because in memory items were exhausted too fast");
-
-                    await currentBatchLoadTask;
+                    // Reset index
+                    _currentIndexInBatch = -1;
                 }
             }
-        }
 
-        public ValueTask DisposeAsync()
-        {
-            if (_db != null)
-                _db.DisposeAsync();
+            // Wait OUTSIDE the lock to allow other threads to proceed
+            if (currentBatchLoadTask != null)
+            {
+                if (currentBatchLoadTask.Status != TaskStatus.RanToCompletion)
+                    _logger?.Warning("You should use bigger elementsInMemoryCount, because in memory items were exhausted too fast");
 
-            return default;
+                await currentBatchLoadTask;
+            }
         }
+    }
+
+    public ValueTask DisposeAsync()
+    {
+        if (_db != null)
+            _db.DisposeAsync();
+
+        return default;
     }
 }
