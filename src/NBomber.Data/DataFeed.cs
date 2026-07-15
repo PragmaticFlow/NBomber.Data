@@ -9,7 +9,7 @@ namespace NBomber.Data;
 /// Represents a data source for feeding test data into a load test scenario.
 /// </summary>
 /// <typeparam name="T">The type of data items provided by the feed.</typeparam>
-public interface IDataFeed<T>
+public interface IDataFeed<out T>
 {
     /// <summary>
     /// Gets the full collection of data items available in the feed.

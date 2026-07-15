@@ -25,7 +25,7 @@ public class LargeDataTests
         monitor.Start();
 
         await using var dataFeed = LargeDataFeed.Random<TestUser>();
-        using var csvStream = LargeData.CreateCsvStream<TestUser>(TestCsvFile);
+        using var csvStream = Data.CreateCsvStream<TestUser>(TestCsvFile);
 
         var logger = new LoggerConfiguration().CreateLogger();
         dataFeed.LoadData(logger, csvStream);
@@ -53,7 +53,7 @@ public class LargeDataTests
         monitor.Start();
 
         await using var dataFeed = LargeDataFeed.Random<TestUser>();
-        using var jsonStream = LargeData.CreateJsonStream<TestUser>(TestJsonFile);
+        using var jsonStream = Data.CreateJsonStream<TestUser>(TestJsonFile);
 
         var logger = new LoggerConfiguration().CreateLogger();
         dataFeed.LoadData(logger, jsonStream);
@@ -81,24 +81,24 @@ public class LargeDataTests
         var recordedItems = new ConcurrentDictionary<long, TestUser>();
 
         var scenario = Scenario.Create("scenario", async context =>
-        {
-            var instanceNumber = context.ScenarioInfo.InstanceNumber;
-            var item = await dataFeed.GetNextItem(context.ScenarioInfo);
+            {
+                var instanceNumber = context.ScenarioInfo.InstanceNumber;
+                var item = await dataFeed.GetNextItem(context.ScenarioInfo);
 
-            // Each instance should always get the same item
-            recordedItems.TryAdd(instanceNumber, item);
+                // Each instance should always get the same item
+                recordedItems.TryAdd(instanceNumber, item);
 
-            return Response.Ok();
-        })
-        .WithInit(context =>
-        {
-            using var stream = LargeData.CreateCsvStream<TestUser>(TestCsvFile);
-            dataFeed.LoadData(context.Logger, stream);
+                return Response.Ok();
+            })
+            .WithInit(context =>
+            {
+                using var stream = Data.CreateCsvStream<TestUser>(TestCsvFile);
+                dataFeed.LoadData(context.Logger, stream);
 
-            return Task.CompletedTask;
-        })
-        .WithoutWarmUp()
-        .WithLoadSimulations(Simulation.KeepConstant(copies: 10, during: TimeSpan.FromSeconds(5)));
+                return Task.CompletedTask;
+            })
+            .WithoutWarmUp()
+            .WithLoadSimulations(Simulation.KeepConstant(copies: 10, during: TimeSpan.FromSeconds(5)));
 
         NBomberRunner
             .RegisterScenarios(scenario)
@@ -122,23 +122,23 @@ public class LargeDataTests
         var requestCount = 0;
 
         var scenario = Scenario.Create("scenario", async context =>
-        {
-            var item = await dataFeed.GetNextItem(context.ScenarioInfo);
+            {
+                var item = await dataFeed.GetNextItem(context.ScenarioInfo);
 
-            receivedIds.Add(item.Id);
-            requestCount++;
+                receivedIds.Add(item.Id);
+                requestCount++;
 
-            return Response.Ok();
-        })
-        .WithInit(context =>
-        {
-            using var stream = LargeData.CreateCsvStream<TestUser>(TestCsvFile);
-            dataFeed.LoadData(context.Logger, stream);
+                return Response.Ok();
+            })
+            .WithInit(context =>
+            {
+                using var stream = Data.CreateCsvStream<TestUser>(TestCsvFile);
+                dataFeed.LoadData(context.Logger, stream);
 
-            return Task.CompletedTask;
-        })
-        .WithoutWarmUp()
-        .WithLoadSimulations(Simulation.IterationsForConstant(copies: 1, iterations: 1000));
+                return Task.CompletedTask;
+            })
+            .WithoutWarmUp()
+            .WithLoadSimulations(Simulation.IterationsForConstant(copies: 1, iterations: 1000));
 
         NBomberRunner
             .RegisterScenarios(scenario)
@@ -168,29 +168,29 @@ public class LargeDataTests
         var invocationCount = 0L;
 
         var scenario = Scenario.Create("scenario", async context =>
-        {
-            var item = await dataFeed.GetNextItem(context.ScenarioInfo);
+            {
+                var item = await dataFeed.GetNextItem(context.ScenarioInfo);
 
-            invocationCount++;
+                invocationCount++;
 
-            // Check if we completed a full loop (every totalRows iterations)
-            if (invocationCount % totalRows == 0)
-                fullLoopCompletedTimes++;
+                // Check if we completed a full loop (every totalRows iterations)
+                if (invocationCount % totalRows == 0)
+                    fullLoopCompletedTimes++;
 
-            if (fullLoopCompletedTimes >= 3)
-                context.StopScenario("scenario", $"Completed {fullLoopCompletedTimes} loops");
+                if (fullLoopCompletedTimes >= 3)
+                    context.StopScenario("scenario", $"Completed {fullLoopCompletedTimes} loops");
 
-            return Response.Ok();
-        })
-        .WithInit(context =>
-        {
-            using var stream = LargeData.CreateCsvStream<TestUser>(TestCsvFile);
-            dataFeed.LoadData(context.Logger, stream);
+                return Response.Ok();
+            })
+            .WithInit(context =>
+            {
+                using var stream = Data.CreateCsvStream<TestUser>(TestCsvFile);
+                dataFeed.LoadData(context.Logger, stream);
 
-            return Task.CompletedTask;
-        })
-        .WithoutWarmUp()
-        .WithLoadSimulations(Simulation.KeepConstant(copies: 1, during: TimeSpan.FromHours(1)));
+                return Task.CompletedTask;
+            })
+            .WithoutWarmUp()
+            .WithLoadSimulations(Simulation.KeepConstant(copies: 1, during: TimeSpan.FromHours(1)));
 
         NBomberRunner
             .RegisterScenarios(scenario)
@@ -200,179 +200,181 @@ public class LargeDataTests
     }
 
     [Fact]
-public async Task Concurrency_Circular_GetNext_Should_Not_Use_Memory_Above_Limit()
-{
-    DataGenerator.GenerateLargeCsvFile(TestCsvFile, Settings.TestFileSizeBytes);
-
-    //var data = Data.LoadCsv<TestUser>(TestCsvFile);
-    //var feed = DataFeed.Circular(data);
-
-    var totalRows = GetCsvRowCount(TestCsvFile);
-
-    await using var dataFeed = LargeDataFeed.Circular<TestUser>(5000);
-
-    var baselineMemory = GC.GetTotalMemory(forceFullCollection: true);
-    var monitor = new MemoryMonitor(baselineMemory);
-
-    var scenario = Scenario.Create("scenario", async context =>
+    public async Task Concurrency_Circular_GetNext_Should_Not_Use_Memory_Above_Limit()
     {
-        var step1 = await Step.Run("batch", context, async () =>
-        {
-            await dataFeed.GetNextItem(context.ScenarioInfo);
-            return Response.Ok();
-        });
+        DataGenerator.GenerateLargeCsvFile(TestCsvFile, Settings.TestFileSizeBytes);
 
-        await Task.Delay(100);
+        //var data = Data.LoadCsv<TestUser>(TestCsvFile);
+        //var feed = DataFeed.Circular(data);
 
-        return Response.Ok();
-    })
-    .WithInit(context =>
-    {
-        using var stream = LargeData.CreateCsvStream<TestUser>(TestCsvFile);
-        dataFeed.LoadData(context.Logger, stream);
+        var totalRows = GetCsvRowCount(TestCsvFile);
 
-        monitor.Start();
-        return Task.CompletedTask;
-    })
-    .WithClean(context =>
-    {
-        monitor.Stop();
-        CleanupTestResources(TestCsvFile);
-        return Task.CompletedTask;
-    })
-    .WithWarmUpDuration(TimeSpan.FromSeconds(5))
-    .WithLoadSimulations(Simulation.KeepConstant(copies: 100, during: TimeSpan.FromSeconds(30)));
+        await using var dataFeed = LargeDataFeed.Circular<TestUser>(5000);
 
-    var stats = NBomberRunner
-        .RegisterScenarios(scenario)
-        .Run();
+        var baselineMemory = GC.GetTotalMemory(forceFullCollection: true);
+        var monitor = new MemoryMonitor(baselineMemory);
 
-    var maxMemoryUsed = monitor.MaxMemoryUsed;
-    var actualMemoryMb = maxMemoryUsed / BytesToMB;
-
-    Assert.True(maxMemoryUsed < Settings.MaxAllowedMemoryBytesConcurrency,
-        $"Memory usage {actualMemoryMb:F2} MB exceeded {Settings.MaxAllowedMemoryMBConcurrency} MB limit");
-
-    var latencyP99 = stats.ScenarioStats.First().StepStats.First(stepStat => stepStat.StepName == "batch").Ok.Latency.Percent99;
-    Assert.True(latencyP99 < Settings.MaxExecutionTimeMs, $"Latency P99 execution time was {latencyP99}");
-}
-
-private class MemoryMonitor(long baselineMemory)
-{
-    private long _maxMemoryUsed;
-    private bool _isMonitoring;
-    private Thread? _monitorThread;
-
-    public long MaxMemoryUsed => _maxMemoryUsed;
-
-    public void Start()
-    {
-        _isMonitoring = true;
-        _monitorThread = new Thread(() =>
-        {
-            while (_isMonitoring)
+        var scenario = Scenario.Create("scenario", async context =>
             {
-                var currentMemory = GC.GetTotalMemory(forceFullCollection: false) - baselineMemory;
-                if (currentMemory > _maxMemoryUsed)
+                var step1 = await Step.Run("batch", context, async () =>
                 {
-                    _maxMemoryUsed = currentMemory;
+                    await dataFeed.GetNextItem(context.ScenarioInfo);
+                    return Response.Ok();
+                });
+
+                await Task.Delay(100);
+
+                return Response.Ok();
+            })
+            .WithInit(context =>
+            {
+                using var stream = Data.CreateCsvStream<TestUser>(TestCsvFile);
+                dataFeed.LoadData(context.Logger, stream);
+
+                monitor.Start();
+                return Task.CompletedTask;
+            })
+            .WithClean(context =>
+            {
+                monitor.Stop();
+                CleanupTestResources(TestCsvFile);
+                return Task.CompletedTask;
+            })
+            .WithWarmUpDuration(TimeSpan.FromSeconds(5))
+            .WithLoadSimulations(Simulation.KeepConstant(copies: 100, during: TimeSpan.FromSeconds(30)));
+
+        var stats = NBomberRunner
+            .RegisterScenarios(scenario)
+            .Run();
+
+        var maxMemoryUsed = monitor.MaxMemoryUsed;
+        var actualMemoryMb = maxMemoryUsed / BytesToMB;
+
+        Assert.True(maxMemoryUsed < Settings.MaxAllowedMemoryBytesConcurrency,
+            $"Memory usage {actualMemoryMb:F2} MB exceeded {Settings.MaxAllowedMemoryMBConcurrency} MB limit");
+
+        var latencyP99 = stats.ScenarioStats.First().StepStats.First(stepStat => stepStat.StepName == "batch").Ok
+            .Latency.Percent99;
+        Assert.True(latencyP99 < Settings.MaxExecutionTimeMs, $"Latency P99 execution time was {latencyP99}");
+    }
+
+    private class MemoryMonitor(long baselineMemory)
+    {
+        private long _maxMemoryUsed;
+        private bool _isMonitoring;
+        private Thread? _monitorThread;
+
+        public long MaxMemoryUsed => _maxMemoryUsed;
+
+        public void Start()
+        {
+            _isMonitoring = true;
+            _monitorThread = new Thread(() =>
+            {
+                while (_isMonitoring)
+                {
+                    var currentMemory = GC.GetTotalMemory(forceFullCollection: false) - baselineMemory;
+                    if (currentMemory > _maxMemoryUsed)
+                    {
+                        _maxMemoryUsed = currentMemory;
+                    }
+
+                    Thread.Sleep(MemoryMonitorIntervalMs);
                 }
-                Thread.Sleep(MemoryMonitorIntervalMs);
-            }
-        });
+            });
 
-        _monitorThread.Start();
+            _monitorThread.Start();
+        }
+
+        public void Stop()
+        {
+            _isMonitoring = false;
+            _monitorThread?.Join();
+            ForceGarbageCollection();
+        }
     }
 
-    public void Stop()
+    private static void CleanupTestResources(string sourceFile)
     {
-        _isMonitoring = false;
-        _monitorThread?.Join();
         ForceGarbageCollection();
+        Thread.Sleep(500);
+
+        CleanupSourceFiles(sourceFile);
+        CleanupDatabaseFiles();
     }
-}
 
-private static void CleanupTestResources(string sourceFile)
-{
-    ForceGarbageCollection();
-    Thread.Sleep(500);
-
-    CleanupSourceFiles(sourceFile);
-    CleanupDatabaseFiles();
-}
-
-private static void CleanupSourceFiles(string fileName)
-{
-    var binDirectory = AppDomain.CurrentDomain.BaseDirectory;
-    var filePath = Path.Combine(binDirectory, fileName);
-
-    if (!File.Exists(filePath)) return;
-
-    try
+    private static void CleanupSourceFiles(string fileName)
     {
-        File.Delete(filePath);
-        Console.WriteLine($"Successfully deleted {Path.GetFileName(filePath)}");
-    }
-    catch (IOException)
-    {
-        Console.WriteLine($"Warning: Could not delete {filePath}");
-    }
-}
+        var binDirectory = AppDomain.CurrentDomain.BaseDirectory;
+        var filePath = Path.Combine(binDirectory, fileName);
 
-private static void CleanupDatabaseFiles()
-{
-    var projectDir = GetProjectDirectory();
-    if (projectDir == null) return;
+        if (!File.Exists(filePath)) return;
 
-    SqliteConnection.ClearAllPools();
-
-    var dbFiles = Directory.GetFiles(projectDir, "NBomber.Data.*.db");
-    foreach (var dbFile in dbFiles)
-    {
         try
         {
-            SqliteConnection.ClearAllPools();
-            File.Delete(dbFile);
-            Console.WriteLine($"Successfully deleted {Path.GetFileName(dbFile)}");
+            File.Delete(filePath);
+            Console.WriteLine($"Successfully deleted {Path.GetFileName(filePath)}");
         }
         catch (IOException)
         {
-            Console.WriteLine($"Warning: Could not delete {dbFile}");
+            Console.WriteLine($"Warning: Could not delete {filePath}");
         }
     }
-}
 
-private static string? GetProjectDirectory()
-{
-    return Directory.GetParent(AppDomain.CurrentDomain.BaseDirectory)?
-        .Parent?.Parent?.Parent?.FullName;
-}
-
-private static long GetCsvRowCount(string fileName)
-{
-    var binDirectory = AppDomain.CurrentDomain.BaseDirectory;
-    var filePath = Path.Combine(binDirectory, fileName);
-
-    if (!File.Exists(filePath)) return 0;
-
-    long count = 0;
-    using var reader = new StreamReader(filePath);
-
-    // Skip header line
-    reader.ReadLine();
-
-    while (reader.ReadLine() != null)
+    private static void CleanupDatabaseFiles()
     {
-        count++;
+        var projectDir = GetProjectDirectory();
+        if (projectDir == null) return;
+
+        SqliteConnection.ClearAllPools();
+
+        var dbFiles = Directory.GetFiles(projectDir, "NBomber.Data.*.db");
+        foreach (var dbFile in dbFiles)
+        {
+            try
+            {
+                SqliteConnection.ClearAllPools();
+                File.Delete(dbFile);
+                Console.WriteLine($"Successfully deleted {Path.GetFileName(dbFile)}");
+            }
+            catch (IOException)
+            {
+                Console.WriteLine($"Warning: Could not delete {dbFile}");
+            }
+        }
     }
 
-    return count;
-}
+    private static string? GetProjectDirectory()
+    {
+        return Directory.GetParent(AppDomain.CurrentDomain.BaseDirectory)?
+            .Parent?.Parent?.Parent?.FullName;
+    }
 
-private static void ForceGarbageCollection()
-{
-    GC.Collect();
-    GC.WaitForPendingFinalizers();
-    GC.Collect();
-}
+    private static long GetCsvRowCount(string fileName)
+    {
+        var binDirectory = AppDomain.CurrentDomain.BaseDirectory;
+        var filePath = Path.Combine(binDirectory, fileName);
+
+        if (!File.Exists(filePath)) return 0;
+
+        long count = 0;
+        using var reader = new StreamReader(filePath);
+
+        // Skip header line
+        reader.ReadLine();
+
+        while (reader.ReadLine() != null)
+        {
+            count++;
+        }
+
+        return count;
+    }
+
+    private static void ForceGarbageCollection()
+    {
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+        GC.Collect();
+    }
 }
