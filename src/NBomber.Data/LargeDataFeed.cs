@@ -23,9 +23,9 @@ public interface IAsyncDataFeed<T> : IAsyncDisposable
     /// Loads data from the provided enumerable into the feed.
     /// Must be called before GetNextItem.
     /// </summary>
-    /// <param name="logger">The logger for diagnostic output.</param>
     /// <param name="data">The data to load into the feed.</param>
-    void LoadData(Serilog.ILogger logger, IEnumerable<T> data);
+    /// <param name="logger">The logger for diagnostic output.</param>
+    void LoadData(IEnumerable<T> data, Serilog.ILogger? logger = null);
 }
 
 /// <summary>

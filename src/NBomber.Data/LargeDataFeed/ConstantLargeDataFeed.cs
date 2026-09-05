@@ -7,7 +7,7 @@ namespace NBomber.Data;
 
 internal class ConstantLargeDataFeed<T> : IAsyncDataFeed<T>
 {
-    private readonly int _batchSize = 100;
+    private readonly int _batchSize;
     private readonly SqliteDbRepository<T> _db = new();
     private readonly List<T> _cachedBatch = new();
     private long _cachedBatchEndIndex = 0;
@@ -31,7 +31,7 @@ internal class ConstantLargeDataFeed<T> : IAsyncDataFeed<T>
         return new ValueTask<T>(_db.GetById(index));
     }
 
-    public void LoadData(Serilog.ILogger logger, IEnumerable<T> data)
+    public void LoadData(IEnumerable<T> data, Serilog.ILogger? logger = null)
     {
         _logger = logger;
         _db.LoadData(data);
@@ -47,7 +47,6 @@ internal class ConstantLargeDataFeed<T> : IAsyncDataFeed<T>
 
     public ValueTask DisposeAsync()
     {
-        _db.DisposeAsync();
-        return new ValueTask();
+        return _db.DisposeAsync();
     }
 }

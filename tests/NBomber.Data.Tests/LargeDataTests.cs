@@ -26,9 +26,8 @@ public class LargeDataTests
 
         await using var dataFeed = LargeDataFeed.Random<TestUser>();
         using var csvStream = Data.CreateCsvStream<TestUser>(TestCsvFile);
-
-        var logger = new LoggerConfiguration().CreateLogger();
-        dataFeed.LoadData(logger, csvStream);
+        
+        dataFeed.LoadData(csvStream);
 
         monitor.Stop();
 
@@ -54,9 +53,8 @@ public class LargeDataTests
 
         await using var dataFeed = LargeDataFeed.Random<TestUser>();
         using var jsonStream = Data.CreateJsonStream<TestUser>(TestJsonFile);
-
-        var logger = new LoggerConfiguration().CreateLogger();
-        dataFeed.LoadData(logger, jsonStream);
+        
+        dataFeed.LoadData(jsonStream);
 
         monitor.Stop();
 
@@ -81,24 +79,24 @@ public class LargeDataTests
         var recordedItems = new ConcurrentDictionary<long, TestUser>();
 
         var scenario = Scenario.Create("scenario", async context =>
-            {
-                var instanceNumber = context.ScenarioInfo.InstanceNumber;
-                var item = await dataFeed.GetNextItem(context.ScenarioInfo);
+        {
+            var instanceNumber = context.ScenarioInfo.InstanceNumber;
+            var item = await dataFeed.GetNextItem(context.ScenarioInfo);
 
-                // Each instance should always get the same item
-                recordedItems.TryAdd(instanceNumber, item);
+            // Each instance should always get the same item
+            recordedItems.TryAdd(instanceNumber, item);
 
-                return Response.Ok();
-            })
-            .WithInit(context =>
-            {
-                using var stream = Data.CreateCsvStream<TestUser>(TestCsvFile);
-                dataFeed.LoadData(context.Logger, stream);
+            return Response.Ok();
+        })
+        .WithInit(context =>
+        {
+            using var stream = Data.CreateCsvStream<TestUser>(TestCsvFile);
+            dataFeed.LoadData(stream);
 
-                return Task.CompletedTask;
-            })
-            .WithoutWarmUp()
-            .WithLoadSimulations(Simulation.KeepConstant(copies: 10, during: TimeSpan.FromSeconds(5)));
+            return Task.CompletedTask;
+        })
+        .WithoutWarmUp()
+        .WithLoadSimulations(Simulation.KeepConstant(copies: 10, during: TimeSpan.FromSeconds(5)));
 
         NBomberRunner
             .RegisterScenarios(scenario)
@@ -122,23 +120,23 @@ public class LargeDataTests
         var requestCount = 0;
 
         var scenario = Scenario.Create("scenario", async context =>
-            {
-                var item = await dataFeed.GetNextItem(context.ScenarioInfo);
+        {
+            var item = await dataFeed.GetNextItem(context.ScenarioInfo);
 
-                receivedIds.Add(item.Id);
-                requestCount++;
+            receivedIds.Add(item.Id);
+            requestCount++;
 
-                return Response.Ok();
-            })
-            .WithInit(context =>
-            {
-                using var stream = Data.CreateCsvStream<TestUser>(TestCsvFile);
-                dataFeed.LoadData(context.Logger, stream);
+            return Response.Ok();
+        })
+        .WithInit(context =>
+        {
+            using var stream = Data.CreateCsvStream<TestUser>(TestCsvFile);
+            dataFeed.LoadData(stream);
 
-                return Task.CompletedTask;
-            })
-            .WithoutWarmUp()
-            .WithLoadSimulations(Simulation.IterationsForConstant(copies: 1, iterations: 1000));
+            return Task.CompletedTask;
+        })
+        .WithoutWarmUp()
+        .WithLoadSimulations(Simulation.IterationsForConstant(copies: 1, iterations: 1000));
 
         NBomberRunner
             .RegisterScenarios(scenario)
@@ -168,29 +166,29 @@ public class LargeDataTests
         var invocationCount = 0L;
 
         var scenario = Scenario.Create("scenario", async context =>
-            {
-                var item = await dataFeed.GetNextItem(context.ScenarioInfo);
+        {
+            var item = await dataFeed.GetNextItem(context.ScenarioInfo);
 
-                invocationCount++;
+            invocationCount++;
 
-                // Check if we completed a full loop (every totalRows iterations)
-                if (invocationCount % totalRows == 0)
-                    fullLoopCompletedTimes++;
+            // Check if we completed a full loop (every totalRows iterations)
+            if (invocationCount % totalRows == 0)
+                fullLoopCompletedTimes++;
 
-                if (fullLoopCompletedTimes >= 3)
-                    context.StopScenario("scenario", $"Completed {fullLoopCompletedTimes} loops");
+            if (fullLoopCompletedTimes >= 3)
+                context.StopScenario("scenario", $"Completed {fullLoopCompletedTimes} loops");
 
-                return Response.Ok();
-            })
-            .WithInit(context =>
-            {
-                using var stream = Data.CreateCsvStream<TestUser>(TestCsvFile);
-                dataFeed.LoadData(context.Logger, stream);
+            return Response.Ok();
+        })
+        .WithInit(context =>
+        {
+            using var stream = Data.CreateCsvStream<TestUser>(TestCsvFile);
+            dataFeed.LoadData(stream);
 
-                return Task.CompletedTask;
-            })
-            .WithoutWarmUp()
-            .WithLoadSimulations(Simulation.KeepConstant(copies: 1, during: TimeSpan.FromHours(1)));
+            return Task.CompletedTask;
+        })
+        .WithoutWarmUp()
+        .WithLoadSimulations(Simulation.KeepConstant(copies: 1, during: TimeSpan.FromHours(1)));
 
         NBomberRunner
             .RegisterScenarios(scenario)
@@ -215,33 +213,33 @@ public class LargeDataTests
         var monitor = new MemoryMonitor(baselineMemory);
 
         var scenario = Scenario.Create("scenario", async context =>
+        {
+            var step1 = await Step.Run("batch", context, async () =>
             {
-                var step1 = await Step.Run("batch", context, async () =>
-                {
-                    await dataFeed.GetNextItem(context.ScenarioInfo);
-                    return Response.Ok();
-                });
-
-                await Task.Delay(100);
-
+                await dataFeed.GetNextItem(context.ScenarioInfo);
                 return Response.Ok();
-            })
-            .WithInit(context =>
-            {
-                using var stream = Data.CreateCsvStream<TestUser>(TestCsvFile);
-                dataFeed.LoadData(context.Logger, stream);
+            });
 
-                monitor.Start();
-                return Task.CompletedTask;
-            })
-            .WithClean(context =>
-            {
-                monitor.Stop();
-                CleanupTestResources(TestCsvFile);
-                return Task.CompletedTask;
-            })
-            .WithWarmUpDuration(TimeSpan.FromSeconds(5))
-            .WithLoadSimulations(Simulation.KeepConstant(copies: 100, during: TimeSpan.FromSeconds(30)));
+            await Task.Delay(100);
+
+            return Response.Ok();
+        })
+        .WithInit(context =>
+        {
+            using var stream = Data.CreateCsvStream<TestUser>(TestCsvFile);
+            dataFeed.LoadData(stream);
+
+            monitor.Start();
+            return Task.CompletedTask;
+        })
+        .WithClean(context =>
+        {
+            monitor.Stop();
+            CleanupTestResources(TestCsvFile);
+            return Task.CompletedTask;
+        })
+        .WithWarmUpDuration(TimeSpan.FromSeconds(5))
+        .WithLoadSimulations(Simulation.KeepConstant(copies: 100, during: TimeSpan.FromSeconds(30)));
 
         var stats = NBomberRunner
             .RegisterScenarios(scenario)

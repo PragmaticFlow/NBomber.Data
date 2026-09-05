@@ -11,7 +11,7 @@ internal class RandomLargeDataFeed<T> : IAsyncDataFeed<T>
     private const int BatchCount = 4;
     private readonly int _batchSize;
     private readonly SqliteDbRepository<T> _db = new();
-    private readonly object _switchLock = new object();
+    private readonly object _switchLock = new();
     private readonly List<T>[] _batches;
     private volatile int _activeBatchIndex = 0;
     private int _currentIndexInBatch = -1;
@@ -32,7 +32,7 @@ internal class RandomLargeDataFeed<T> : IAsyncDataFeed<T>
             _batches[i] = new List<T>(_batchSize);
     }
 
-    public void LoadData(Serilog.ILogger logger, IEnumerable<T> data)
+    public void LoadData(IEnumerable<T> data, Serilog.ILogger? logger = null)
     {
         _logger = logger;
         _db.LoadData(data);
@@ -89,9 +89,8 @@ internal class RandomLargeDataFeed<T> : IAsyncDataFeed<T>
                     var exhaustedBatchIndex = _activeBatchIndex;
 
                     // Switch to next batch
-                    _activeBatchIndex++;
-                    if (_activeBatchIndex >= BatchCount)
-                        _activeBatchIndex = 0;
+                    var next = _activeBatchIndex + 1;
+                    _activeBatchIndex = next >= BatchCount ? 0 : next;
 
                     // For small datasets, all batches are pre-filled with random items,
                     // so we don't need to reload - just switch between them
@@ -119,9 +118,6 @@ internal class RandomLargeDataFeed<T> : IAsyncDataFeed<T>
 
     public ValueTask DisposeAsync()
     {
-        if (_db != null)
-            _db.DisposeAsync();
-
-        return default;
+        return _db.DisposeAsync();
     }
 }

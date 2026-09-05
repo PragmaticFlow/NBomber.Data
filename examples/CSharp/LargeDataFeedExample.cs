@@ -18,7 +18,7 @@ public static class LargeDataFeedExample
         .WithInit(context =>
         {
             using var stream = Data.CreateJsonStream<User>("users-feed-data.json");
-            dataFeed.LoadData(context.Logger, stream);
+            dataFeed.LoadData(stream);
             return Task.CompletedTask;
         })
         .WithoutWarmUp()

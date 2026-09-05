@@ -25,11 +25,12 @@ internal class CircularLargeDataFeed<T> : IAsyncDataFeed<T>
         elementsInMemoryCount = elementsInMemoryCount > 100 ? elementsInMemoryCount : 100;
         _batchSize = elementsInMemoryCount / BatchCount;
         _batches = new List<T>[BatchCount];
-        for (int i = 0; i < BatchCount; i++)
+        
+        for (var i = 0; i < BatchCount; i++)
             _batches[i] = new List<T>(_batchSize);
     }
 
-    public void LoadData(Serilog.ILogger logger, IEnumerable<T> data)
+    public void LoadData(IEnumerable<T> data, Serilog.ILogger? logger = null)
     {
         _logger = logger;
         _db.LoadData(data);
@@ -39,7 +40,7 @@ internal class CircularLargeDataFeed<T> : IAsyncDataFeed<T>
 
         _isSmallDataset = _db.DataCount < _batchSize;
 
-        for (int i = 0; i < BatchCount; i++)
+        for (var i = 0; i < BatchCount; i++)
             _nextDbIdToLoad = _db.LoadBatch(_batches[i], _nextDbIdToLoad, _batchSize);
     }
 
@@ -70,16 +71,17 @@ internal class CircularLargeDataFeed<T> : IAsyncDataFeed<T>
                     var exhaustedBatchIndex = _activeBatchIndex;
 
                     // Switch to next batch
-                    _activeBatchIndex++;
-                    if (_activeBatchIndex >= BatchCount)
-                        _activeBatchIndex = 0;
-
+                    var next = _activeBatchIndex + 1;
+                    _activeBatchIndex = next >= BatchCount ? 0 : next;
+                    
                     // For small datasets, both batches are pre-filled with repeated copies
                     // of all data, so we don't need to reload - just switch between them
                     if (!_isSmallDataset)
                     {
                         // Start loading the exhausted batch in background
-                        _nextBatchLoadTask = Task.Run(() => _nextDbIdToLoad = _db.LoadBatch(_batches[exhaustedBatchIndex], _nextDbIdToLoad, _batchSize));
+                        _nextBatchLoadTask = Task.Run(() =>
+                            _nextDbIdToLoad = _db.LoadBatch(_batches[exhaustedBatchIndex], _nextDbIdToLoad, _batchSize)
+                        );
                     }
 
                     // Reset index
@@ -100,9 +102,6 @@ internal class CircularLargeDataFeed<T> : IAsyncDataFeed<T>
 
     public ValueTask DisposeAsync()
     {
-        if (_db != null)
-            _db.DisposeAsync();
-
-        return default;
+        return _db.DisposeAsync();
     }
 }
