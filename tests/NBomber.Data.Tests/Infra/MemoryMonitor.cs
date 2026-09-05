@@ -11,7 +11,7 @@ class MemoryMonitor(long baselineMemory)
 
     public long MaxMemoryUsed => _maxMemoryUsed;
     public double MaxMemoryUsedMB => _maxMemoryUsed / BytesToMB;
-
+    
     public void Start()
     {
         _isMonitoring = true;
@@ -36,13 +36,6 @@ class MemoryMonitor(long baselineMemory)
     {
         _isMonitoring = false;
         _monitorThread?.Join();
-        ForceGarbageCollection();
-    }
-    
-    private void ForceGarbageCollection()
-    {
-        GC.Collect();
-        GC.WaitForPendingFinalizers();
-        GC.Collect();
+        TestEnv.ForceGarbageCollection();
     }
 }

@@ -1,4 +1,5 @@
-﻿using Microsoft.Data.Sqlite;
+﻿using System.Diagnostics;
+using Microsoft.Data.Sqlite;
 
 namespace NBomber.Data.Tests.Infra;
 
@@ -88,5 +89,13 @@ class TestEnv
         GC.Collect();
         GC.WaitForPendingFinalizers();
         GC.Collect();
+    }
+    
+    // "What did the process actually cost?" — includes SQLite's native cache.
+    public static long GetWorkingSet()
+    {
+        using var p = Process.GetCurrentProcess();
+        p.Refresh();
+        return p.WorkingSet64;
     }
 }
