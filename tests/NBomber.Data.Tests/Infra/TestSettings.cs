@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace NBomber.Data.Tests;
+namespace NBomber.Data.Tests.Infra;
 
 public class TestSettings
 {
@@ -10,8 +10,6 @@ public class TestSettings
     public long MaxAllowedMemoryMBConcurrency { get; set; }
 
     public long TestFileSizeBytes => TestFileSizeMB * 1024 * 1024;
-    public long MaxAllowedMemoryBytes => MaxAllowedMemoryMB * 1024 * 1024;
-    public long MaxAllowedMemoryBytesConcurrency => MaxAllowedMemoryMBConcurrency * 1024 * 1024;
 
     private static TestSettings? _instance;
 

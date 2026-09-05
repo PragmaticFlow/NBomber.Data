@@ -4,10 +4,9 @@ using CsvHelper.Configuration;
 using System.Globalization;
 using System.Text.Json;
 
-//DataGenerator.GenerateLargeCsvFile("users-feed-data.csv", 1024 * 1024 * 1024);
-//DataGenerator.GenerateLargeJsonFile("users-feed-data.json", 1024 * 1024 * 1024);
+namespace NBomber.Data.Tests.Infra;
 
-internal static class DataGenerator
+static class DataGenerator
 {
     public static void GenerateLargeJsonFile(string filePath, long targetSizeInBytes)
     {
@@ -112,6 +111,5 @@ internal static class DataGenerator
 public class TestUser
 {
     public int Id { get; set; }
-
     public string Name { get; set; }
 }
